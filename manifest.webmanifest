@@ -1,10 +1,20 @@
 {
+  "id": "./",
   "name": "Sem 1 CE Study Hub",
   "short_name": "Sem1 CE",
   "start_url": "./",
+  "scope": "./",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#0b1120",
   "theme_color": "#101827",
   "description": "B.Tech Semester 1 Computer Engineering study and practice app",
-  "icons": []
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
 }
