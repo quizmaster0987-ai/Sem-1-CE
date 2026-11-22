@@ -137,21 +137,25 @@ renderStudyFiles();
 /* Avoid repeating answered questions until the user explicitly starts revision. */
 mcq = function(c,s){
  const qs=currentQs(s);
- if(!qs.length){originalMcqRender(c,s);return}
- const pending=qs.map((q,i)=>({q,i,key:selected+"-"+chapter+"-"+i})).filter(x=>!state.attempts[x.key]);
- if(qIndex<0){if(pending.length)qIndex=pending[0].i;}
- if(!pending.length && qIndex<0){
-  c.innerHTML="<h2>Chapter practice complete</h2><p class='muted'>You have attempted all "+qs.length+" available questions. Questions will not repeat unless you choose revision.</p><div class='feedback'><b>Great work!</b><p>Use revision mode to practise again.</p></div><button class='btn primary' id='reviseAll'>Revise all questions</button>"+chapterSelect(s);
+ if(!qs.length){c.innerHTML="<h2>MCQ practice</h2>"+chapterSelect(s)+"<div class='empty'>No questions are available in this chapter.</div>";c.querySelector("#chapterSelect").onchange=e=>{chapter=+e.target.value;qIndex=-1;render()};return}
+ let pending=qs.map((q,i)=>i).filter(i=>!state.attempts[selected+"-"+chapter+"-"+i]);
+ if(qIndex<0){qIndex=pending.length?pending[0]:-1}
+ if(qIndex===-1 || qIndex>=qs.length){
+  c.innerHTML="<h2>Chapter practice complete</h2><p class='muted'>You have attempted all "+qs.length+" available questions in this chapter. Questions will not repeat unless you choose revision.</p><div class='feedback'><b>Great work!</b><p>Use revision mode to practise again.</p></div><button class='btn primary' id='reviseAll'>Revise all questions</button>"+chapterSelect(s);
   c.querySelector("#reviseAll").onclick=()=>{qIndex=0;render()};c.querySelector("#chapterSelect").onchange=e=>{chapter=+e.target.value;qIndex=-1;render()};return;
  }
  const q=qs[qIndex],key=selected+"-"+chapter+"-"+qIndex,attempt=state.attempts[key];
- choice=attempt?attempt.chosen:null;checked=!!attempt;
- c.innerHTML="<div class='row'><div><h2>MCQ practice</h2><span class='muted'>Question "+(pending.length?qs.length-pending.length+1:qs.length)+" · "+qs.length+" total in this chapter</span></div><span class='pill'>1 mark</span></div>"+chapterSelect(s)+"<div class='progress'><span style='width:"+((qs.length-pending.length)/qs.length*100)+"%'></span></div><div class='question'>"+t(q.q,q.gu||"")+"</div>"+q.o.map((o,i)=>"<button class='option "+(checked&&i===q.a?"correct":checked&&i===choice?"wrong":choice===i?"selected":"")+"' data-choice='"+i+"' "+(checked?"disabled":"")+"><span class='letter'>"+ "ABCD"[i] +"</span>"+o+"</button>").join("")+"<div class='row' style='margin-top:14px'><button class='btn primary' id='checkAnswer' "+(choice===null||checked?"disabled":"")+">Check answer</button><button class='btn' id='nextQuestion' "+(!checked?"disabled":"")+">Next question →</button></div><div id='answerExplain'></div><div class='row' style='margin-top:12px'><button class='btn' id='bookmarkQuestion'>"+(state.bookmarks.includes(key)?"★ Saved":"☆ Bookmark question")+"</button><span class='muted' style='font-size:12px'>No repeats until all questions are attempted.</span></div>";
- c.querySelector("#chapterSelect").onchange=e=>{chapter=+e.target.value;qIndex=-1;choice=null;checked=false;render()};
- c.querySelectorAll("[data-choice]").forEach(btn=>btn.onclick=()=>{choice=Number(btn.dataset.choice);c.querySelectorAll("[data-choice]").forEach(x=>x.classList.toggle("selected",Number(x.dataset.choice)===choice));c.querySelector("#checkAnswer").disabled=false});
- if(checked)c.querySelector("#answerExplain").innerHTML="<div class='feedback "+(attempt.ok?"":"bad")+"'><b>"+(attempt.ok?"Correct!":"Review this one")+"</b><p>"+q.e+"</p></div>";
- c.querySelector("#checkAnswer").onclick=()=>{state.attempts[key]={ok:choice===q.a,subject:selected,chapter,q:q.q,chosen:choice,correct:q.a};save();render()};
- c.querySelector("#nextQuestion").onclick=()=>{const next=qs.map((x,i)=>i).find(i=>!state.attempts[selected+"-"+chapter+"-"+i]);qIndex=next===undefined?-1:next;choice=null;checked=false;render()};
+ const progressDone=qs.length-pending.length;
+ let html="<div class='row'><div><h2>MCQ practice</h2><span class='muted'>"+(attempt?"Review question":"Question "+(progressDone+1))+" · "+qs.length+" total</span></div><span class='pill'>1 mark</span></div>"+chapterSelect(s)+"<div class='progress'><span style='width:"+(progressDone/qs.length*100)+"%'></span></div><div class='question'>"+t(q.q,q.gu||"")+"</div>";
+ html+=q.o.map((o,i)=>"<button class='option "+(attempt&&i===q.a?"correct":attempt&&i===attempt.chosen?"wrong":"")+"' data-choice='"+i+"' "+(attempt?"disabled":"")+"><span class='letter'>"+ "ABCD"[i] +"</span>"+o+"</button>").join("");
+ html+="<div class='row' style='margin-top:14px'><button class='btn primary' id='checkAnswer' disabled>Check answer</button><button class='btn' id='nextQuestion' "+(attempt?"":"disabled")+">Next question →</button></div>";
+ if(attempt)html+="<div class='feedback "+(attempt.ok?"":"bad")+"'><b>"+(attempt.ok?"Correct!":"Review this one")+"</b><p>"+q.e+"</p></div>";
+ html+="<div class='row' style='margin-top:12px'><button class='btn' id='bookmarkQuestion'>"+(state.bookmarks.includes(key)?"★ Saved":"☆ Bookmark question")+"</button><span class='muted' style='font-size:12px'>No repeats until all questions are attempted.</span></div>";
+ c.innerHTML=html;
+ c.querySelector("#chapterSelect").onchange=e=>{chapter=+e.target.value;qIndex=-1;render()};
+ if(!attempt)c.querySelectorAll("[data-choice]").forEach(btn=>btn.onclick=()=>{choice=Number(btn.dataset.choice);c.querySelectorAll("[data-choice]").forEach(x=>x.classList.toggle("selected",Number(x.dataset.choice)===choice));c.querySelector("#checkAnswer").disabled=false});
+ if(!attempt)c.querySelector("#checkAnswer").onclick=()=>{if(choice===null)return;state.attempts[key]={ok:choice===q.a,subject:selected,chapter,q:q.q,chosen:choice,correct:q.a};save();render()};
+ c.querySelector("#nextQuestion").onclick=()=>{const next=qs.map((x,i)=>i).find(i=>!state.attempts[selected+"-"+chapter+"-"+i]);qIndex=next===undefined?-1:next;choice=null;render()};
  c.querySelector("#bookmarkQuestion").onclick=()=>{state.bookmarks.includes(key)?state.bookmarks=state.bookmarks.filter(x=>x!==key):state.bookmarks.push(key);save();render()};
 };
 const originalNextHandler = null;
